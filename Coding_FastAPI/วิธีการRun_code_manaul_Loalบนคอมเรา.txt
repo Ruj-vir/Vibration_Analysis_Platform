@@ -1,0 +1,2 @@
+cd "c:/Users/26009623/Downloads/Vibration_Platform_/Coding_FastAPI"
+uvicorn main:app --reload 

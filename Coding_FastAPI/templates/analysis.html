@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibration Analysis Platform Project</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #1a2e4a 0%, #0f172a 100%);
+      border-bottom: 1px solid #334155;
+      padding: 1.1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .header-left { display: flex; align-items: center; gap: 0.75rem; }
+    header h1 { font-size: 1.35rem; font-weight: 700; color: #38bdf8; }
+    header .sub { font-size: 0.8rem; color: #64748b; }
+    .nav-link {
+      color: #94a3b8; font-size: 0.85rem; text-decoration: none;
+      border: 1px solid #334155; border-radius: 6px;
+      padding: 0.4rem 0.9rem; transition: all 0.2s;
+    }
+    .nav-link:hover { color: #38bdf8; border-color: #38bdf8; }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1200px;
+      margin: 1.75rem auto;
+      padding: 0 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.4rem;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px; height: 14px;
+      background: #38bdf8;
+      border-radius: 2px;
+    }
+
+    /* ── DROPZONE ── */
+    #dropzone {
+      border: 2px dashed #475569;
+      border-radius: 10px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #dropzone:hover, #dropzone.drag-over {
+      border-color: #38bdf8;
+      background: #0f2744;
+    }
+    #dropzone .icon { font-size: 2.25rem; margin-bottom: 0.6rem; }
+    #dropzone p   { color: #94a3b8; font-size: 0.9rem; }
+    #dropzone strong { color: #38bdf8; }
+    #file-input { display: none; }
+
+    #file-list {
+      margin-top: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+    .file-chip {
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 20px;
+      padding: 0.28rem 0.7rem;
+      font-size: 0.77rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .file-chip .rm { cursor: pointer; color: #ef4444; font-weight: 700; }
+
+    /* ── MACHINE GROUPS PREVIEW ── */
+    .group-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+    .group-badge {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.82rem;
+    }
+    .group-badge .gname { color: #38bdf8; font-weight: 600; }
+    .group-badge .gcount { color: #64748b; margin-left: 0.4rem; }
+
+    /* ── BUTTONS ── */
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 0.85rem; flex-wrap: wrap; }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: #0ea5e9; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0284c7; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+
+    /* ── SPINNER ── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── ERROR / WARN BANNER ── */
+    .banner {
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .banner-warn { background: #451a03; border: 1px solid #f59e0b; color: #fcd34d; }
+
+    /* ── MACHINE RESULT BLOCK ── */
+    .machine-block {
+      border: 1px solid #334155;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .machine-block:last-child { margin-bottom: 0; }
+    .machine-header {
+      background: #162032;
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid #334155;
+    }
+    .machine-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+    .machine-meta { font-size: 0.8rem; color: #64748b; }
+    .table-wrap { overflow-x: auto; }
+
+    /* ── SUMMARY TABLE ── */
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .summary-table th {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 0.6rem 1rem;
+      text-align: center;
+      font-weight: 600;
+      border: 1px solid #1e293b;
+      white-space: nowrap;
+    }
+    .summary-table th.fm-col {
+      text-align: left;
+      color: #cbd5e1;
+      min-width: 180px;
+    }
+    .summary-table td {
+      padding: 0.55rem 0.9rem;
+      border: 1px solid #1e293b;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .summary-table td.fm-label {
+      text-align: left;
+      font-weight: 500;
+      color: #e2e8f0;
+      background: #0f172a;
+    }
+
+    /* ── SEVERITY CELLS ── */
+    .sev { border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.8rem; font-weight: 600; display: inline-block; min-width: 70px; }
+    .sev-1 { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+    .sev-2 { background: #0c2d4e; color: #7dd3fc; border: 1px solid #0ea5e9; }
+    .sev-3 { background: #422006; color: #fef08a; border: 1px solid #eab308; }
+    .sev-4 { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
+    .sev-na { background: #1e293b; color: #475569; border: 1px solid #334155; }
+
+    .sev-legend {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+      font-size: 0.78rem;
+    }
+
+    .hidden { display: none; }
+
+    /* ── AI PREDICTION RESULT CARDS ── */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+      gap: 1.1rem;
+    }
+    .result-card {
+      border-radius: 10px;
+      border: 1px solid #334155;
+      overflow: hidden;
+    }
+    .result-header {
+      padding: 0.8rem 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-weight: 600;
+    }
+    .result-header .filename { flex: 1; font-size: 0.85rem; color: #e2e8f0; word-break: break-all; }
+    .result-header .badge {
+      font-size: 0.78rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.12);
+      white-space: nowrap;
+    }
+    .result-body { padding: 0.9rem 1.15rem; background: #0f172a; }
+    .chart-wrap  { position: relative; height: 150px; }
+
+    /* ── FEATURE IMPORTANCE ── */
+    .fi-chart-wrap { position: relative; height: 210px; }
+
+    /* ── FILTER BAR ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+    }
+    .filter-bar label { font-size: 0.8rem; color: #94a3b8; white-space: nowrap; }
+    .filter-select {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .filter-select:focus { outline: none; border-color: #38bdf8; }
+    .filter-reset {
+      background: transparent;
+      color: #64748b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-reset:hover { color: #e2e8f0; border-color: #475569; }
+    .filter-count { font-size: 0.78rem; color: #64748b; margin-left: auto; }
+    .no-results {
+      text-align: center;
+      color: #475569;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <span style="font-size:1.6rem;">🔬</span>
+    <div>
+      <h1>Vibration Analysis Platform Project</h1>
+      <div class="sub">จัดกลุ่มเครื่องจักร · วิเคราะห์ 3 Failure Modes · Export Excel</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.75rem;">
+    <span style="color:#64748b;font-size:0.85rem;">👤 {{ current_user }}</span>
+    <a class="nav-link" href="/logout" style="color:#f87171;border-color:#f87171;">⏏ Logout</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="card">
+    <div class="card-title">1. Upload RTF Files (หลายไฟล์ · หลายเครื่อง)</div>
+    <div id="dropzone">
+      <div class="icon">📂</div>
+      <p>ลากไฟล์ RTF มาวางที่นี่ หรือ <strong>คลิกเพื่อเลือก</strong></p>
+      <p style="margin-top:0.35rem;font-size:0.78rem;color:#475569;">
+        รูปแบบชื่อไฟล์: <code style="color:#7dd3fc;">P-566S-1H_16-Oct-25_10-35-32.rtf</code>
+      </p>
+      <input type="file" id="file-input" accept=".rtf" multiple />
+    </div>
+    <div id="file-list"></div>
+
+    <div class="btn-row">
+      <button id="analyze-btn" class="btn btn-primary" disabled>
+        <span>🔍</span> วิเคราะห์และจัดกลุ่ม
+      </button>
+      <button id="export-btn" class="btn btn-success hidden" disabled>
+        <span>📊</span> Export Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: MACHINE GROUPS PREVIEW -->
+  <div class="card hidden" id="groups-section">
+    <div class="card-title">2. Machine Groups</div>
+    <div class="group-grid" id="group-grid"></div>
+  </div>
+
+  <!-- STEP 3: FAILURE MODE SUMMARY -->
+  <div class="card hidden" id="results-section">
+    <div class="card-title">3. Failure Mode Summary</div>
+
+    <div id="failed-banner" class="banner banner-warn hidden"></div>
+
+    <!-- Legend -->
+    <div class="sev-legend">
+      <span><span class="sev sev-1">Stage A Normal</span></span>
+      <span><span class="sev sev-2">Stage B Warning</span></span>
+      <span><span class="sev sev-3">Stage C Alarm</span></span>
+      <span><span class="sev sev-4">Stage D Critical</span></span>
+      <span><span class="sev sev-na">N/A</span></span>
+    </div>
+
+    <div id="machines-container" style="margin-top:1rem;"></div>
+  </div>
+
+  <!-- STEP 4: FEATURE IMPORTANCE -->
+  <div class="card hidden" id="importance-section">
+    <div class="card-title">4. Feature Importance (Model Insights)</div>
+    <p style="color:#94a3b8;font-size:0.82rem;margin-bottom:0.85rem;">
+      กราฟนี้บอกว่า AI ให้น้ำหนักกับค่าใดมากที่สุดในการตัดสินใจ
+    </p>
+    <div class="fi-chart-wrap">
+      <canvas id="importance-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- STEP 5: AI PREDICTION RESULTS -->
+  <div class="card hidden" id="predictions-section">
+    <div class="card-title">5. AI Prediction Results</div>
+    <div id="error-banner" class="banner banner-warn hidden"></div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <label>เครื่องจักร</label>
+      <select id="filter-machine" class="filter-select">
+        <option value="">— ทั้งหมด —</option>
+      </select>
+      <label>จุดวัด</label>
+      <select id="filter-point" class="filter-select">
+        <option value="">— ทั้งหมด —</option>
+      </select>
+      <label>Stage</label>
+      <select id="filter-stage" class="filter-select" style="min-width:120px;">
+        <option value="">— ทั้งหมด —</option>
+        <option value="1">Stage A — ปกติ</option>
+        <option value="2">Stage B — Warning</option>
+        <option value="3">Stage C — Alarm</option>
+        <option value="4">Stage D — Critical</option>
+      </select>
+      <button id="filter-reset" class="filter-reset">↺ รีเซ็ต</button>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+
+    <div class="result-grid" id="result-grid"></div>
+    <div class="no-results hidden" id="no-results">ไม่พบไฟล์ที่ตรงกับ filter ที่เลือก</div>
+  </div>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════
+   FILE MANAGEMENT
+═══════════════════════════════════════════════ */
+let selectedFiles = [];
+const dropzone   = document.getElementById('dropzone');
+const fileInput  = document.getElementById('file-input');
+const fileList   = document.getElementById('file-list');
+const analyzeBtn = document.getElementById('analyze-btn');
+const exportBtn  = document.getElementById('export-btn');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  addFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+
+function addFiles(files) {
+  files.filter(f => f.name.toLowerCase().endsWith('.rtf')).forEach(f => {
+    if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f);
+  });
+  renderFileList();
+  updateGroupPreview();
+}
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  selectedFiles.forEach((f, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `<span>📄 ${f.name}</span><span class="rm" data-i="${i}">✕</span>`;
+    fileList.appendChild(chip);
+  });
+  fileList.querySelectorAll('.rm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedFiles.splice(Number(btn.dataset.i), 1);
+      renderFileList();
+      updateGroupPreview();
+    });
+  });
+  analyzeBtn.disabled = selectedFiles.length === 0;
+}
+
+/* ── Parse filename client-side for preview ── */
+function parseName(filename) {
+  const base = filename.replace(/\.rtf$/i, '');
+  const firstSeg = base.split('_')[0];  // 'P-566S-1H'
+  const parts = firstSeg.split('-');
+  if (parts.length < 2) return { machine: firstSeg, point: 'UNKNOWN' };
+  const point   = parts[parts.length - 1];
+  const machine = parts.slice(0, -1).join('-');
+  return { machine, point };
+}
+
+function updateGroupPreview() {
+  const groupGrid = document.getElementById('group-grid');
+  const section   = document.getElementById('groups-section');
+
+  if (selectedFiles.length === 0) { section.classList.add('hidden'); return; }
+
+  const groups = {};
+  selectedFiles.forEach(f => {
+    const { machine, point } = parseName(f.name);
+    if (!groups[machine]) groups[machine] = new Set();
+    groups[machine].add(point);
+  });
+
+  groupGrid.innerHTML = '';
+  Object.entries(groups).sort().forEach(([m, pts]) => {
+    const div = document.createElement('div');
+    div.className = 'group-badge';
+    div.innerHTML = `<span class="gname">⚙️ ${m}</span><span class="gcount">${pts.size} จุดวัด: ${[...pts].sort().join(', ')}</span>`;
+    groupGrid.appendChild(div);
+  });
+  section.classList.remove('hidden');
+}
+
+/* ═══════════════════════════════════════════════
+   ANALYZE
+═══════════════════════════════════════════════ */
+let lastData = null;
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFiles.length) return;
+
+  analyzeBtn.disabled = true;
+  analyzeBtn.innerHTML = '<div class="spinner"></div> กำลังวิเคราะห์…';
+  exportBtn.classList.add('hidden');
+  ['results-section', 'predictions-section', 'importance-section'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+
+  try {
+    const fd = new FormData();
+    selectedFiles.forEach(f => fd.append('files', f));
+
+    // Call all 3 endpoints in parallel
+    const [groupRes, predictRes, importanceRes] = await Promise.all([
+      fetch('/analyze-group',      { method: 'POST', body: fd }),
+      fetch('/predict',            { method: 'POST', body: fd }),
+      fetch('/feature-importance'),
+    ]);
+
+    const groupData      = await groupRes.json();
+    const predictData    = await predictRes.json();
+    const importanceData = await importanceRes.json();
+
+    lastData = groupData;
+
+    renderPredictions(predictData.results, predictData.failed, groupData);
+    renderImportance(importanceData);
+    renderResults(groupData);
+  } catch (err) {
+    alert('เกิดข้อผิดพลาด: ' + err.message);
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.innerHTML = '<span>🔍</span> วิเคราะห์และจัดกลุ่ม';
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   RENDER RESULTS
+═══════════════════════════════════════════════ */
+const FM_ROWS = [
+  { key: 'fm1', label: 'FM1 — Bearing Defect',   note: '(ML Model)', maxLevel: 4 },
+  { key: 'fm2', label: 'FM2 — Looseness Type A', note: '(ML Model)', maxLevel: 4 },
+  { key: 'fm3', label: 'FM3 — Looseness Type C', note: '(ML Model)', maxLevel: 4 },
+];
+
+const SEV_ICONS = { 1: '✅', 2: '⚠️', 3: '🚨', 4: '💀' };
+const SEV_LABELS = { 1: 'Stage A', 2: 'Stage B', 3: 'Stage C', 4: 'Stage D' };
+
+function sevCell(level) {
+  if (level == null) return `<span class="sev sev-na">N/A</span>`;
+  return `<span class="sev sev-${level}">${SEV_ICONS[level]} ${SEV_LABELS[level]}</span>`;
+}
+
+function renderResults(data) {
+  const section   = document.getElementById('results-section');
+  const banner    = document.getElementById('failed-banner');
+  const container = document.getElementById('machines-container');
+
+  section.classList.remove('hidden');
+  container.innerHTML = '';
+
+  if (data.failed && data.failed.length) {
+    banner.textContent = '⚠️ อ่านไม่ได้: ' + data.failed.join(', ');
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  data.machines.forEach(({ machine, points }) => {
+    const measurementPoints = Object.keys(points);  // already sorted from backend
+
+    const block = document.createElement('div');
+    block.className = 'machine-block';
+    block.dataset.machine = machine;
+
+    /* ── header ── */
+    block.innerHTML = `
+      <div class="machine-header">
+        <span style="font-size:1.3rem;">⚙️</span>
+        <span class="machine-name">${machine}</span>
+        <span class="machine-meta">${measurementPoints.length} จุดวัด · ${measurementPoints.join(' | ')}</span>
+      </div>
+    `;
+
+    /* ── table ── */
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-wrap';
+
+    let thead = `<tr><th class="fm-col">Failure Mode</th>`;
+    measurementPoints.forEach(pt => { thead += `<th>${pt}</th>`; });
+    thead += `</tr>`;
+
+    let tbody = '';
+    FM_ROWS.forEach(({ key, label, note }) => {
+      tbody += `<tr>`;
+      tbody += `<td class="fm-label">${label} <span style="color:#64748b;font-size:0.75rem;">${note}</span></td>`;
+      measurementPoints.forEach(pt => {
+        const level = points[pt] ? points[pt][key] : null;
+        tbody += `<td>${sevCell(level)}</td>`;
+      });
+      tbody += `</tr>`;
+    });
+
+    tableWrap.innerHTML = `
+      <table class="summary-table">
+        <thead>${thead}</thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    `;
+    block.appendChild(tableWrap);
+    container.appendChild(block);
+  });
+
+  if (data.machines.length > 0) {
+    exportBtn.classList.remove('hidden');
+    exportBtn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER: AI PREDICTION RESULTS (section 3)
+═══════════════════════════════════════════════ */
+const SEVERITY_MAP = {
+  1: { label: 'Stage A: ปกติ (Normal)',          color: '#22c55e', icon: '✅' },
+  2: { label: 'Stage B: เริ่มผิดปกติ (Warning)', color: '#0ea5e9', icon: '⚠️' },
+  3: { label: 'Stage C: อันตราย (Alarm)',         color: '#eab308', icon: '🚨' },
+  4: { label: 'Stage D: วิกฤต (Critical)',        color: '#ef4444', icon: '💀' },
+};
+const confidenceCharts = {};
+
+function renderPredictions(results, failed, groupData) {
+  // Build filename → {fm1,fm2,fm3} lookup from group analysis
+  const fmLookup = {};
+  if (groupData) {
+    groupData.machines.forEach(({ points }) => {
+      Object.values(points).forEach(info => {
+        fmLookup[info.filename] = { fm1: info.fm1, fm2: info.fm2, fm3: info.fm3 };
+      });
+    });
+  }
+
+  const section = document.getElementById('predictions-section');
+  const banner  = document.getElementById('error-banner');
+  const grid    = document.getElementById('result-grid');
+
+  // Destroy old confidence charts
+  Object.values(confidenceCharts).forEach(c => c.destroy());
+  Object.keys(confidenceCharts).forEach(k => delete confidenceCharts[k]);
+
+  grid.innerHTML = '';
+  section.classList.remove('hidden');
+
+  if (failed && failed.length) {
+    banner.textContent = '⚠️ อ่านไม่ได้: ' + failed.join(', ');
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  const totalCount = results.length;
+
+  results.forEach((r, idx) => {
+    const fmData = fmLookup[r.filename] || {};
+    const fm1 = r.fm2_prediction !== undefined ? r.prediction        : (fmData.fm1 ?? r.prediction);
+    const fm2 = r.fm2_prediction !== undefined ? r.fm2_prediction   : (fmData.fm2 ?? null);
+    const fm3 = r.fm3_prediction !== undefined ? r.fm3_prediction   : (fmData.fm3 ?? null);
+
+    // Border color = worst severity among all FMs
+    const worstLevel = Math.max(fm1 || 0, fm2 || 0, fm3 || 0) || fm1;
+    const borderColor = (SEVERITY_MAP[worstLevel] || SEVERITY_MAP[fm1] || { color: '#334155' }).color;
+    const cid1 = `conf-chart-${idx}-fm1`;
+    const cid2 = `conf-chart-${idx}-fm2`;
+    const cid3 = `conf-chart-${idx}-fm3`;
+    const { machine, point } = parseName(r.filename);
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.borderColor = borderColor;
+    card.dataset.machine = machine;
+    card.dataset.point   = point;
+    card.dataset.stage   = String(fm1);
+    card.innerHTML = `
+      <div class="result-header" style="background:#162032;">
+        <span style="font-size:1.1rem;">📄</span>
+        <div class="filename">${r.filename}</div>
+      </div>
+      <div class="result-body">
+        <div style="display:flex;flex-direction:column;gap:0.45rem;margin-bottom:0.85rem;">
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <span style="font-size:0.75rem;color:#64748b;width:160px;flex-shrink:0;">FM1 — Bearing Defect</span>
+            ${sevCell(fm1)}
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <span style="font-size:0.75rem;color:#64748b;width:160px;flex-shrink:0;">FM2 — Looseness Type A</span>
+            ${sevCell(fm2)}
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;">
+            <span style="font-size:0.75rem;color:#64748b;width:160px;flex-shrink:0;">FM3 — Looseness Type C</span>
+            ${sevCell(fm3)}
+          </div>
+        </div>
+        <p style="color:#94a3b8;font-size:0.75rem;margin-bottom:0.4rem;">FM1 — Bearing Defect AI Confidence (%)</p>
+        <div class="chart-wrap" style="height:120px;"><canvas id="${cid1}"></canvas></div>
+        <p style="color:#94a3b8;font-size:0.75rem;margin:0.75rem 0 0.4rem;">FM2 — Looseness Type A AI Confidence (%)</p>
+        <div class="chart-wrap" style="height:120px;"><canvas id="${cid2}"></canvas></div>
+        <p style="color:#94a3b8;font-size:0.75rem;margin:0.75rem 0 0.4rem;">FM3 — Looseness Type C AI Confidence (%)</p>
+        <div class="chart-wrap" style="height:120px;"><canvas id="${cid3}"></canvas></div>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    requestAnimationFrame(() => {
+      const colorMap = { 1: '#22c55e', 2: '#0ea5e9', 3: '#eab308', 4: '#ef4444' };
+      function makeChart(canvasId, classes, probs) {
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+        confidenceCharts[canvasId] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: classes.map(c => `Level ${c}`),
+            datasets: [{
+              data: probs.map(p => +(p * 100).toFixed(1)),
+              backgroundColor: classes.map(c => colorMap[c] || '#6b7280'),
+              borderRadius: 5,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+              y: {
+                ticks: { color: '#94a3b8', callback: v => v + '%' },
+                grid: { color: '#334155' },
+                max: 100,
+              },
+            },
+          },
+        });
+      }
+      makeChart(cid1, r.classes,        r.probabilities);
+      makeChart(cid2, r.fm2_classes,    r.fm2_probabilities);
+      makeChart(cid3, r.fm3_classes,    r.fm3_probabilities);
+    });
+  });
+
+  // Populate filter dropdowns
+  populateFilters(results);
+  updateFilterCount(totalCount, totalCount);
+}
+
+/* ── Filter logic ── */
+function populateFilters(results) {
+  const machineSet = new Set();
+  const pointSet   = new Set();
+  results.forEach(r => {
+    const { machine, point } = parseName(r.filename);
+    machineSet.add(machine);
+    pointSet.add(point);
+  });
+
+  const machSel  = document.getElementById('filter-machine');
+  const pointSel = document.getElementById('filter-point');
+
+  machSel.innerHTML  = '<option value="">— ทั้งหมด —</option>';
+  pointSel.innerHTML = '<option value="">— ทั้งหมด —</option>';
+
+  [...machineSet].sort().forEach(m => {
+    machSel.innerHTML += `<option value="${m}">${m}</option>`;
+  });
+  [...pointSet].sort().forEach(p => {
+    pointSel.innerHTML += `<option value="${p}">${p}</option>`;
+  });
+}
+
+function applyFilters() {
+  const machVal  = document.getElementById('filter-machine').value;
+  const pointVal = document.getElementById('filter-point').value;
+  const stageVal = document.getElementById('filter-stage').value;
+  const cards    = document.querySelectorAll('#result-grid .result-card');
+  let visible = 0;
+
+  cards.forEach(card => {
+    const machMatch  = !machVal  || card.dataset.machine === machVal;
+    const pointMatch = !pointVal || card.dataset.point   === pointVal;
+    const stageMatch = !stageVal || card.dataset.stage   === stageVal;
+    const show = machMatch && pointMatch && stageMatch;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  updateFilterCount(visible, cards.length);
+  document.getElementById('no-results').classList.toggle('hidden', visible > 0);
+}
+
+function updateFilterCount(visible, total) {
+  document.getElementById('filter-count').textContent =
+    visible === total ? `${total} ไฟล์` : `แสดง ${visible} / ${total} ไฟล์`;
+}
+
+document.getElementById('filter-machine').addEventListener('change', applyFilters);
+document.getElementById('filter-point').addEventListener('change', applyFilters);
+document.getElementById('filter-stage').addEventListener('change', applyFilters);
+document.getElementById('filter-reset').addEventListener('click', () => {
+  document.getElementById('filter-machine').value = '';
+  document.getElementById('filter-point').value   = '';
+  document.getElementById('filter-stage').value   = '';
+  applyFilters();
+});
+
+/* ═══════════════════════════════════════════════
+   RENDER: FEATURE IMPORTANCE (section 4)
+═══════════════════════════════════════════════ */
+let fiChart = null;
+
+function renderImportance(data) {
+  document.getElementById('importance-section').classList.remove('hidden');
+
+  const pairs = data.features
+    .map((f, i) => ({ f, v: data.importance[i] }))
+    .sort((a, b) => b.v - a.v);
+
+  const ctx = document.getElementById('importance-chart').getContext('2d');
+  if (fiChart) fiChart.destroy();
+
+  fiChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p => p.f),
+      datasets: [{
+        label: 'Importance',
+        data: pairs.map(p => +(p.v * 100).toFixed(2)),
+        backgroundColor: ['#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe'],
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8', callback: v => v + '%' },
+          grid: { color: '#334155' },
+        },
+        y: { ticks: { color: '#e2e8f0' }, grid: { color: '#1e293b' } },
+      },
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   EXPORT EXCEL (SheetJS)
+═══════════════════════════════════════════════ */
+const SEV_TEXT = { 1: 'Stage A Normal', 2: 'Stage B Warning', 3: 'Stage C Alarm', 4: 'Stage D Critical' };
+const SEV_FILL = {
+  1: { fgColor: { rgb: '14532D' } },
+  2: { fgColor: { rgb: '451A03' } },
+  3: { fgColor: { rgb: '450A0A' } },
+  4: { fgColor: { rgb: '3B0764' } },
+};
+const SEV_FONT = {
+  1: { color: { rgb: '86EFAC' }, bold: true },
+  2: { color: { rgb: 'FCD34D' }, bold: true },
+  3: { color: { rgb: 'FCA5A5' }, bold: true },
+  4: { color: { rgb: 'E9D5FF' }, bold: true },
+};
+
+exportBtn.addEventListener('click', () => {
+  if (!lastData) return;
+  exportBtn.disabled = true;
+  exportBtn.innerHTML = '<div class="spinner"></div> กำลัง Export…';
+
+  try {
+    const wb = XLSX.utils.book_new();
+
+    lastData.machines.forEach(({ machine, points }) => {
+      const pts = Object.keys(points);
+
+      /* ── header row ── */
+      const headerRow = ['Failure Mode', ...pts];
+
+      /* ── data rows ── */
+      const rows = [headerRow];
+      FM_ROWS.forEach(({ key, label, note }) => {
+        const row = [`${label} ${note}`, ...pts.map(pt => {
+          const level = points[pt] ? points[pt][key] : null;
+          return level ? SEV_TEXT[level] : 'N/A';
+        })];
+        rows.push(row);
+      });
+
+      /* ── features rows (separator + feature data) ── */
+      rows.push([]);  // blank
+      rows.push(['--- Features ---', ...pts]);
+      ['RMS', 'Peak', 'Kurtosis', 'Skewness', 'Crest_Factor'].forEach(feat => {
+        rows.push([feat, ...pts.map(pt => {
+          const val = points[pt]?.features?.[feat];
+          return val != null ? parseFloat(val.toFixed(4)) : 'N/A';
+        })]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      /* ── column widths ── */
+      ws['!cols'] = [{ wch: 32 }, ...pts.map(() => ({ wch: 16 }))];
+
+      /* ── apply cell colors for FM rows ── */
+      FM_ROWS.forEach(({ key }, rowIdx) => {
+        const excelRow = rowIdx + 2; // 1-indexed, row 1 = header
+        pts.forEach((pt, colIdx) => {
+          const level = points[pt] ? points[pt][key] : null;
+          if (!level) return;
+          const cellAddr = XLSX.utils.encode_cell({ r: excelRow - 1, c: colIdx + 1 });
+          if (!ws[cellAddr]) return;
+          ws[cellAddr].s = {
+            fill: { patternType: 'solid', ...SEV_FILL[level] },
+            font: SEV_FONT[level],
+            alignment: { horizontal: 'center' },
+          };
+        });
+        // FM label cell styling
+        const labelCell = XLSX.utils.encode_cell({ r: excelRow - 1, c: 0 });
+        if (ws[labelCell]) ws[labelCell].s = { font: { bold: true }, fill: { patternType: 'solid', fgColor: { rgb: '0F172A' } } };
+      });
+
+      /* ── header styling ── */
+      headerRow.forEach((_, ci) => {
+        const addr = XLSX.utils.encode_cell({ r: 0, c: ci });
+        if (ws[addr]) ws[addr].s = {
+          fill: { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+          font: { color: { rgb: '38BDF8' }, bold: true },
+          alignment: { horizontal: ci === 0 ? 'left' : 'center' },
+        };
+      });
+
+      /* ── sheet name: max 31 chars (Excel limit) ── */
+      const sheetName = machine.substring(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    /* ── summary sheet ── */
+    const summaryRows = [['Machine', 'Measurement Point', 'FM1 Bearing', 'FM2 Looseness Type A', 'FM3 Looseness Type C',
+                           'RMS', 'Peak', 'Kurtosis', 'Skewness', 'Crest_Factor', 'Filename']];
+    lastData.machines.forEach(({ machine, points }) => {
+      Object.entries(points).sort().forEach(([pt, info]) => {
+        summaryRows.push([
+          machine, pt,
+          SEV_TEXT[info.fm1] || 'N/A',
+          SEV_TEXT[info.fm2] || 'N/A',
+          SEV_TEXT[info.fm3] || 'N/A',
+          parseFloat((info.features.RMS        ?? 0).toFixed(4)),
+          parseFloat((info.features.Peak       ?? 0).toFixed(4)),
+          parseFloat((info.features.Kurtosis   ?? 0).toFixed(4)),
+          parseFloat((info.features.Skewness   ?? 0).toFixed(4)),
+          parseFloat((info.features.Crest_Factor ?? 0).toFixed(4)),
+          info.filename,
+        ]);
+      });
+    });
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    wsSummary['!cols'] = [14, 16, 18, 22, 22, 10, 10, 10, 10, 14, 36].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Bearing_Analysis_${today}.xlsx`, { bookType: 'xlsx', cellStyles: true });
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = '<span>📊</span> Export Excel';
+  }
+});
+</script>
+</body>
+</html>

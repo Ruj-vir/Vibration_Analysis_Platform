@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.log
+Example_Upload_rtf_File/
