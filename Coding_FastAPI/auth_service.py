@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 
 # ─── SSO Configuration ────────────────────────────────────────────────────────
 SSO_LOGIN_URL = "https://login.gcmeapps.com/signin/"
-SSO_CALLBACK_URL = "https://vap.gcmeapps.com:8001/home"   # SSO จะ redirect กลับมาที่นี่
+SSO_CALLBACK_URL = "https://vap.gcmeapps.com/home"   # SSO จะ redirect กลับมาที่นี่
 SESSION_SECRET = os.environ.get(
     "SESSION_SECRET", "vibration-platform-secret-key-change-in-production"
 )
