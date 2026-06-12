@@ -3,14 +3,14 @@ services:
     build: .
     container_name: vibration_app
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./templates:/app/templates
     environment:
       - SESSION_SECRET=${SESSION_SECRET:-vibration-platform-secret-key-change-in-production}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/login-page"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/login-page"]
       interval: 30s
       timeout: 10s
       retries: 3
