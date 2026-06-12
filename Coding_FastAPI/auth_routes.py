@@ -11,13 +11,15 @@ auth_routes.py — SSO Callback Routes (/login-page, /login, /home, /logout)
   from auth_routes import router as auth_router
   app.include_router(auth_router)
 """
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from auth_service import clear_auth, redirect_to_sso, save_auth
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 router = APIRouter()
 

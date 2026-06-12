@@ -10,7 +10,7 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-vibration-platform-secret-key-change-in-production}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://vap.gcmeapps.com:8001/login-page"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/login-page"]
       interval: 30s
       timeout: 10s
       retries: 3
